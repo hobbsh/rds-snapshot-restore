@@ -16,8 +16,6 @@ spec:
       backoffLimit: 2
       template:
         spec:
-          imagePullSecrets:
-          - name: aws-registry
           terminationGracePeriodSeconds: 0
           restartPolicy: OnFailure
           containers: 
