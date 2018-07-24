@@ -23,7 +23,7 @@ spec:
           containers: 
           - name: snapshot-restore
             imagePullPolicy: IfNotPresent
-            image: wylie/rds-snapshot-restore
+            image: wylie/rds-snapshot-restore:aa20c39
             args:
               - python3 
               - /ssr/snapshot_restore.py
