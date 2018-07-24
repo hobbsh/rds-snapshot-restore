@@ -2,6 +2,10 @@
 
 This script looks for the most recent snapshot for a given `DBInstanceIdentifier` and restores it to a new instance in the same or different VPC.
 
+## Issues
+
+Please open an issue if you find a bug or have a feature request (or if you think I did something stupid). 
+
 #### Usage
 
 The following targets an RDS instance named `mydata` and will restore it to an instance called `staging-mydata-[some unix timestamp]`, create a CNAME called `mydata.staging.example.com` in a Route53 zone with `staging` in the name (specified by `-m`). Since `-V` and `-S` are specified, the new instance will be in a different VPC. The VPC used matches the `Name: staging` key/value tag and the `database` security group is used.  Since `--noop` is used, no action is done.
@@ -76,3 +80,6 @@ optional arguments:
   -n, --noop            Enable NOOP mode - will not perform any restore tasks.
 ```
 
+## Contributing
+
+Please fork and PR to master if you have something to add
