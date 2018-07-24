@@ -2,6 +2,15 @@
 
 This script looks for the most recent snapshot for a given `DBInstanceIdentifier` and restores it to a new instance in the same or different VPC.
 
+It is designed to only have one restored instance at once (it will spin up the new one then delete the old). Once the old istance is deleted, it changes the DNS record to point to the new instance. It should only take a 15 or so minutes to run (tested on a 600GB m4.2xlarge).
+
+## Use Cases
+
+* You want to have a staging database with similar or identical data to production to test your applications against
+* You want to test your production snapshots
+* You really like creating new RDS instances
+* Probably others I haven't though of
+
 ## Issues
 
 Please open an issue if you find a bug or have a feature request (or if you think I did something stupid). 
