@@ -11,6 +11,13 @@ It is designed to only have one restored instance at once (it will spin up the n
 * You really like creating new RDS instances
 * Probably others I haven't though of
 
+## Running in Kubernetes
+
+To run this in kubernetes:
+* Fill out the container arguments in `cronjob.yml` to suit your environment - especially if you want to build your own image
+* Create a kubernetes secret called `rds-snapshot-restore` with your AWS Credentials in it and add it to your cluster
+* `kubectl apply -f cronjob.yml`
+
 ## Issues
 
 Please open an issue if you find a bug or have a feature request (or if you think I did something stupid). 
