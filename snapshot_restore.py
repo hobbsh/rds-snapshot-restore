@@ -8,6 +8,7 @@ import json
 import time
 import sys
 import argparse
+import logging
 
 aws_region = None
 
@@ -20,7 +21,9 @@ def main(args):
 
     new_instance_attributes = set_new_instance_attributes(args)
 
-    print("New instance attributes are: %s" % new_instance_attributes)
+    logging.info("New instance attributes are: %s" % new_instance_attributes)
+
+    write_attribute_to_file(f'{args.attribute_folder}/db_instance_name',new_instance_attributes['name'])
 
     if not args.noop:
         restore_rds_snapshot(new_instance_attributes)
@@ -32,8 +35,9 @@ def main(args):
 
             if new_instance_attributes['existing_instances']:
                 destroy_old_instances(new_instance_attributes['existing_instances'])
+
     else:
-        print("NOOP: Would restore snapshot %s" % (new_instance_attributes['restore_snapshot_id']))
+        logging.info("NOOP: Would restore snapshot %s" % (new_instance_attributes['restore_snapshot_id']))
 
 
 def set_new_instance_attributes(args):
@@ -49,7 +53,7 @@ def set_new_instance_attributes(args):
             vpc_id = get_vpc_id_by_name_tag(args.vpc_tag_name)
             security_group_ids = get_security_groups(vpc_id, args.security_group_names)
         else:
-            print("You must specifiy a VPC Name Tag to search for when using the -S option. Exiting")
+            logging.critical("You must specifiy a VPC Name Tag to search for when using the -S option. Exiting")
             sys.exit(1)
     else:
         security_group_ids = [vsg['VpcSecurityGroupId'] for vsg in target_attributes['VpcSecurityGroups']]
@@ -66,7 +70,7 @@ def set_new_instance_attributes(args):
     elif args.zone_id and not args.zone_match_string:
         zone_id = args.zone_id
     else:
-        print('You must use --zone-id or --match-zone in order for DNS update to work. Both cannot be specified at the same time. Exiting.')
+        logging.critical('You must use --zone-id or --match-zone in order for DNS update to work. Both cannot be specified at the same time. Exiting.')
         sys.exit(1)
 
     # If prefix is specified, prepend it to the new_instance_name
@@ -111,7 +115,7 @@ def get_target_instance_attributes(instance_identifier):
     if response:
         return response['DBInstances'][0]
     else:
-        print("Could not find an instance that matches %s. Exiting." % instance_identifier)
+        logging.critical("Could not find an instance that matches %s. Exiting." % instance_identifier)
         sys.exit(1)
 
 def get_vpc_id_by_name_tag(vpc_name_tag_value):
@@ -162,12 +166,12 @@ def get_security_groups(vpc_id, group_names):
     if security_groups:
         return security_groups
     else:
-        print("Could not find any security groups in VPC %s that match %s. Exiting." % (vpc_id, group_names))
+        logging.info("Could not find any security groups in VPC %s that match %s. Exiting." % (vpc_id, group_names))
         sys.exit(1)
 
 
 def find_snapshot_restored_instances(instance_match_string):
-    print ("Determine if there are currently any existing snapshot-restored instances matching %s tag" % instance_match_string)
+    logging.info("Determine if there are currently any existing snapshot-restored instances matching %s tag" % instance_match_string)
 
     client = boto3.client('rds', region_name=aws_region)
     existing_instances = []
@@ -180,12 +184,12 @@ def find_snapshot_restored_instances(instance_match_string):
                 existing_instances.append(instance_id)
 
         if existing_instances:
-            print ("These instances were found and will be deleted when the new one is active %s" % existing_instances)
+            logging.info("These instances were found and will be deleted when the new one is active %s" % existing_instances)
 
         return existing_instances
 
     except:
-        print("No existing instances found with with substring %s" %
+        logging.critical("No existing instances found with with substring %s" %
               instance_match_string)
         return None
 
@@ -193,7 +197,7 @@ def find_snapshot_restored_instances(instance_match_string):
 def get_recent_rds_snapshot(snapshot_type, target_rds_instance):
     client = boto3.client('rds', region_name=aws_region)
 
-    print ("Finding most recent %s snapshot from master instance %s" %
+    logging.info("Finding most recent %s snapshot from master instance %s" %
            (snapshot_type, target_rds_instance))
 
     # Get all snapshots for the account, which we will filter in the next step
@@ -212,12 +216,12 @@ def get_recent_rds_snapshot(snapshot_type, target_rds_instance):
             reverse=True)[0]
     except IndexError:
         raise StandardError('Could not find a snapshot')
-        print(sys.exc_info()[0])
+        logging.info(sys.exc_info()[0])
 
     identifier = most_current_snapshot.get('DBSnapshotIdentifier')
 
     if identifier:
-        print("Most recent snapshot for %s is %s - using it to restore from" % (target_rds_instance, identifier))
+        logging.info("Most recent snapshot for %s is %s - using it to restore from" % (target_rds_instance, identifier))
         return identifier
     else:
         raise StandardError(
@@ -229,7 +233,7 @@ def restore_rds_snapshot(attributes):
     """Create new RDS instance as a mirror of the target instance (from snapshot)"""
     client = boto3.client('rds', region_name=aws_region)
 
-    print('Making sure database subnet group %s exists' % attributes['db_subnet_group'])
+    logging.info('Making sure database subnet group %s exists' % attributes['db_subnet_group'])
     # Verify that the specified database subnet group is real
     db_subnet_group = client.describe_db_subnet_groups(
         DBSubnetGroupName=attributes['db_subnet_group']
@@ -237,7 +241,7 @@ def restore_rds_snapshot(attributes):
 
 
     if db_subnet_group:
-        print('Restoring snapshot %s to new instance %s' % (attributes['restore_snapshot_id'], attributes['name']))
+        logging.info('Restoring snapshot %s to new instance %s' % (attributes['restore_snapshot_id'], attributes['name']))
 
         response = client.restore_db_instance_from_db_snapshot(
             DBInstanceIdentifier=attributes['name'],
@@ -255,7 +259,7 @@ def restore_rds_snapshot(attributes):
             ]
         )
 
-        print("Restore initiated, waiting for database to become available...")
+        logging.info("Restore initiated, waiting for database to become available...")
 
         waiter = client.get_waiter('db_instance_available')
         waiter.wait(
@@ -278,7 +282,7 @@ def modify_new_rds_instance(attributes):
     client = boto3.client('rds', region_name=aws_region)
 
     try:
-        print('Modifying db instance %s' % attributes['name'])
+        logging.info('Modifying db instance %s' % attributes['name'])
 
         response = client.modify_db_instance(
             DBInstanceIdentifier=attributes['name'],
@@ -306,7 +310,7 @@ def get_route53_zone_id(zone_match_string):
 
     client = boto3.client('route53', region_name=aws_region)
 
-    print("Looking for private route53 zone with %s in the name" % zone_match_string)
+    logging.info("Looking for private route53 zone with %s in the name" % zone_match_string)
     try:
         response = client.list_hosted_zones()
 
@@ -316,14 +320,14 @@ def get_route53_zone_id(zone_match_string):
 
 
         if zone_id:
-            print("Found zone %s that has %s in its name" % (zone_id, zone_match_string))
+            logging.info("Found zone %s that has %s in its name" % (zone_id, zone_match_string))
             return zone_id
         else:
-            print("Could not find Route53 zone with %s in the name. Try using the -z option or fix your match string. Exiting" % zone_match_string)
+            logging.critical("Could not find Route53 zone with %s in the name. Try using the -z option or fix your match string. Exiting" % zone_match_string)
             sys.exit(1)
 
     except Exception as e:
-        print ("Error retrieving zone id for %s - %s" %
+        logging.critical("Error retrieving zone id for %s - %s" %
                (zone_match_string, str(e)))
         raise
 
@@ -336,7 +340,11 @@ def update_dns(attributes, target):
     client = boto3.client('route53', region_name=aws_region)
 
     dns_name = "%s.%s" % (attributes['cname_name'], attributes['dns_suffix'])
-    print("Creating/updating DNS in zone %s for record %s with value %s" % (attributes['zone_id'], dns_name, target))
+    logging.info("Creating/updating DNS in zone %s for record %s with value %s" % (attributes['zone_id'], dns_name, target))
+
+    write_attribute_to_file(f'{args.attribute_folder}/dns_record_name',dns_name)
+    write_attribute_to_file(f'{args.attribute_folder}/dns_record_value',target)
+
     try:
         response = client.change_resource_record_sets(
             HostedZoneId=attributes['zone_id'],
@@ -356,7 +364,17 @@ def update_dns(attributes, target):
         waiter.wait(Id=response['ChangeInfo']['Id'])
 
     except Exception as e:
-        print("Error updating DNS for endpoint %s - %s" % (target, str(e)))
+        logging.critical("Error updating DNS for endpoint %s - %s" % (target, str(e)))
+        raise
+
+def write_attribute_to_file(path,value):
+
+    try:
+        f = open(path,"w+")
+        f.write(value)
+        f.close()
+    except Exception as e:
+        logging.critical("Error while writing attribute %s to file %s - %s" % (value,path, str(e)))
         raise
 
 
@@ -367,7 +385,7 @@ def destroy_old_instances(old_rds_instances):
     client = boto3.client('rds', region_name=aws_region)
 
     for instance in old_rds_instances:
-        print("Destroying old instance %s" % instance)
+        logging.info("Destroying old instance %s" % instance)
 
         try:
             response = client.delete_db_instance(
@@ -384,7 +402,7 @@ def destroy_old_instances(old_rds_instances):
                 }
             )
         except Exception as e:
-            print("Error deleting %s - %s" % (instance, str(e)))
+            logging.critical("Error deleting %s - %s" % (instance, str(e)))
             raise
 
 
@@ -415,6 +433,8 @@ def build_parser():
     parser.add_argument(
         '-s', '--snapshot-type', required=False, type=str, dest='snapshot_type', default='automated', help='Snapshot type to search filter on. Defaults to "automated"')
     parser.add_argument(
+        '-f', '--attribute-folder', required=True, type=str, dest='attribute_folder', help='Path to the folder where RDS instance attributes will be stored')
+    parser.add_argument(
         '-n', '--noop', required=False, dest='noop', action='store_true', default=False, help='Enable NOOP mode - will not perform any restore tasks')
 
     return parser
@@ -423,5 +443,8 @@ if __name__ == '__main__':
 
     parser = build_parser()
     args = parser.parse_args()
+
+    loglevel = logging.INFO
+    logging.basicConfig(level=loglevel)
 
     main(args)
