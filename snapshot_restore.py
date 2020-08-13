@@ -23,7 +23,7 @@ def main(args):
 
     logging.info("New instance attributes are: %s" % new_instance_attributes)
 
-    write_attribute_to_file(f'{args.attribute_folder}/db_instance_name',new_instance_attributes['name'])
+    write_attribute_to_file(f'{args.data_folder}/db_instance_name',new_instance_attributes['name'])
 
     if not args.noop:
         restore_rds_snapshot(new_instance_attributes)
@@ -342,8 +342,8 @@ def update_dns(attributes, target):
     dns_name = "%s.%s" % (attributes['cname_name'], attributes['dns_suffix'])
     logging.info("Creating/updating DNS in zone %s for record %s with value %s" % (attributes['zone_id'], dns_name, target))
 
-    write_attribute_to_file(f'{args.attribute_folder}/dns_record_name',dns_name)
-    write_attribute_to_file(f'{args.attribute_folder}/dns_record_value',target)
+    write_attribute_to_file(f'{args.data_folder}/dns_record_name',dns_name)
+    write_attribute_to_file(f'{args.data_folder}/dns_record_value',target)
 
     try:
         response = client.change_resource_record_sets(
@@ -427,7 +427,7 @@ def write_delete_patch(dns_name,value):
         ]
     }
 
-    write_attribute_to_file(f'{args.attribute_folder}/dns_delete_patch',json.dumps(delete_patch))
+    write_attribute_to_file(f'{args.data_folder}/dns_delete_patch',json.dumps(delete_patch))
 
 
 def build_parser():
@@ -457,7 +457,7 @@ def build_parser():
     parser.add_argument(
         '-s', '--snapshot-type', required=False, type=str, dest='snapshot_type', default='automated', help='Snapshot type to search filter on. Defaults to "automated"')
     parser.add_argument(
-        '-f', '--attribute-folder', required=False, type=str, dest='attribute_folder', default='./', help='Path to the folder where RDS instance and DNS attributes will be stored')
+        '-f', '--data-folder', required=False, type=str, dest='data_folder', default='./', help='Path to the folder where RDS instance and DNS data will be stored')
     parser.add_argument(
         '-n', '--noop', required=False, dest='noop', action='store_true', default=False, help='Enable NOOP mode - will not perform any restore tasks')
 
