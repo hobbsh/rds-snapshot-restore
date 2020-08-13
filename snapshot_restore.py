@@ -363,6 +363,8 @@ def update_dns(attributes, target):
         waiter = client.get_waiter('resource_record_sets_changed')
         waiter.wait(Id=response['ChangeInfo']['Id'])
 
+        write_delete_patch(dns_name,value)
+
     except Exception as e:
         logging.critical("Error updating DNS for endpoint %s - %s" % (target, str(e)))
         raise
@@ -404,6 +406,28 @@ def destroy_old_instances(old_rds_instances):
         except Exception as e:
             logging.critical("Error deleting %s - %s" % (instance, str(e)))
             raise
+
+def write_delete_patch(dns_name,value):
+    delete_patch = {
+        'Comment': 'Delete single record set',
+        'Changes': [
+            {
+                'Action': 'DELETE',
+                'ResourceRecordSet':{
+                    'Name': f'{dns_name}.',
+                    'Type': 'CNAME',
+                    'TTL': 300,
+                    'ResourceRecords': [
+                        {
+                            'Value': value
+                        }
+                    ]
+                }
+            }       
+        ]
+    }
+
+    write_attribute_to_file(f'{args.attribute_folder}/dns_delete_patch',json.dumps(delete_patch))
 
 
 def build_parser():
