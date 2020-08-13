@@ -363,7 +363,7 @@ def update_dns(attributes, target):
         waiter = client.get_waiter('resource_record_sets_changed')
         waiter.wait(Id=response['ChangeInfo']['Id'])
 
-        write_delete_patch(dns_name,value)
+        write_delete_patch(dns_name,target)
 
     except Exception as e:
         logging.critical("Error updating DNS for endpoint %s - %s" % (target, str(e)))
@@ -457,7 +457,7 @@ def build_parser():
     parser.add_argument(
         '-s', '--snapshot-type', required=False, type=str, dest='snapshot_type', default='automated', help='Snapshot type to search filter on. Defaults to "automated"')
     parser.add_argument(
-        '-f', '--attribute-folder', required=True, type=str, dest='attribute_folder', help='Path to the folder where RDS instance attributes will be stored')
+        '-f', '--attribute-folder', required=False, type=str, dest='attribute_folder', default='./', help='Path to the folder where RDS instance and DNS attributes will be stored')
     parser.add_argument(
         '-n', '--noop', required=False, dest='noop', action='store_true', default=False, help='Enable NOOP mode - will not perform any restore tasks')
 
