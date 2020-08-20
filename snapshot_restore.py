@@ -21,6 +21,10 @@ def main(args):
 
     new_instance_attributes = set_new_instance_attributes(args)
 
+    if args.extra_tags:
+        extra_tags = parse_extra_tags(args.extra_tags)
+        new_instance_attributes['tags'] = new_instance_attributes['tags'] + extra_tags
+
     logging.info("New instance attributes are: %s" % new_instance_attributes)
 
     write_attribute_to_file(f'{args.data_folder}/db_instance_name',new_instance_attributes['name'])
@@ -39,6 +43,21 @@ def main(args):
     else:
         logging.info("NOOP: Would restore snapshot %s" % (new_instance_attributes['restore_snapshot_id']))
 
+
+def parse_extra_tags(tags_str):
+    tags_lst = []
+    tags_splt = tags_str.split(';')
+
+    for tag in tags_splt:
+        tag_key = tag.split(':')[0]
+        tag_val = tag.split(':')[1]
+        tag = {
+            "Key": tag_key,
+            "Value": tag_val
+        }
+        tags_lst.append(tag)
+
+    return tags_lst
 
 def set_new_instance_attributes(args):
     now = str(time.time()).split('.')[0]
@@ -81,6 +100,12 @@ def set_new_instance_attributes(args):
 
     new_instance_name = "%s-%s" % (new_instance_base, now)
     tag_key = "%s-automated-restore" % new_instance_base
+    tags = [
+        {
+            'Key': f'{new_instance_base}-automated-restore', 
+            'Value': 'true'
+        }
+    ]
 
     restore_snapshot_id = get_recent_rds_snapshot(
         args.snapshot_type, target_name)
@@ -100,7 +125,7 @@ def set_new_instance_attributes(args):
         'multi_az': False,
         'region': args.aws_region,
         'auto_minor_version_upgrade': False,
-        'tag_key': tag_key
+        'tags': tags
     }
 
     return new_instance_attributes
@@ -251,12 +276,7 @@ def restore_rds_snapshot(attributes):
             MultiAZ=attributes['multi_az'],
             AutoMinorVersionUpgrade=attributes['auto_minor_version_upgrade'],
             DBSubnetGroupName=attributes['db_subnet_group'],
-            Tags=[
-                {
-                    'Key': attributes['tag_key'],
-                    'Value': 'true'
-                },
-            ]
+            Tags=attributes['tags']
         )
 
         logging.info("Restore initiated, waiting for database to become available...")
@@ -432,8 +452,8 @@ def write_delete_patch(dns_name,value):
 
 def build_parser():
     parser = argparse.ArgumentParser(description='Restore the most recent snapshot of a given RDS instance to a new instance')
-    parser.add_argument('-t', '--target', required=True, type=str, dest='target_instance', 
-        help='Name of the RDS instance to restore the snapshot from - this is the DBInstanceIdentifier of the target instance')
+    parser.add_argument(
+        '-t', '--target', required=True, type=str, dest='target_instance', help='Name of the RDS instance to restore the snapshot from - this is the DBInstanceIdentifier of the target instance')
     parser.add_argument(
         '-r', '--region', required=False, type=str, dest='aws_region', default='us-west-2', help='AWS Region to use. Currently can only target and restore to the same region. Defaults to "us-west-2"')
     parser.add_argument(
@@ -458,6 +478,8 @@ def build_parser():
         '-s', '--snapshot-type', required=False, type=str, dest='snapshot_type', default='automated', help='Snapshot type to search filter on. Defaults to "automated"')
     parser.add_argument(
         '-f', '--data-folder', required=False, type=str, dest='data_folder', default='./', help='Path to the folder where RDS instance and DNS data will be stored')
+    parser.add_argument(
+        '-e', '--extra-tags', required=False, type=str, dest='extra_tags', help='Additional Tags for the new RDS instance. Format like -e "tag1_key:tag1_value;tag2_key:tag2_value"')
     parser.add_argument(
         '-n', '--noop', required=False, dest='noop', action='store_true', default=False, help='Enable NOOP mode - will not perform any restore tasks')
 
