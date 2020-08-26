@@ -30,7 +30,7 @@ def main(args):
     write_attribute_to_file(f'{args.data_folder}/db_instance_name',new_instance_attributes['name'])
 
     if not args.noop:
-        restore_rds_snapshot(new_instance_attributes)
+        restore_rds_snapshot(args,new_instance_attributes)
         new_instance = modify_new_rds_instance(new_instance_attributes)
 
         if new_instance:
@@ -61,8 +61,13 @@ def parse_extra_tags(tags_str):
 
 def set_new_instance_attributes(args):
     now = str(time.time()).split('.')[0]
-    target_attributes = get_target_instance_attributes(args.target_instance)
-    target_name = target_attributes['DBInstanceIdentifier']
+
+
+    if not args.from_snapshot:
+        target_attributes = get_target_instance_attributes(args.target_instance)
+        target_name = target_attributes['DBInstanceIdentifier']
+    else:
+        target_name = args.target_instance
 
     # Get security group IDs based on the security group names specified
     # Otherwise, use the target instance's security group IDs
@@ -180,11 +185,13 @@ def get_security_groups(vpc_id, group_names):
                 {
                     'Name': 'group-name',
                     'Values': [
-                        group_name,
+                        f'{group_name}*',
                     ]
                 }
             ]
         )
+
+        print(security_group)
 
         security_groups.append(security_group['SecurityGroups'][0]['GroupId'])
 
@@ -254,7 +261,7 @@ def get_recent_rds_snapshot(snapshot_type, target_rds_instance):
             % target_rds_instance)
 
 
-def restore_rds_snapshot(attributes):
+def restore_rds_snapshot(args,attributes):
     """Create new RDS instance as a mirror of the target instance (from snapshot)"""
     client = boto3.client('rds', region_name=aws_region)
 
@@ -264,8 +271,13 @@ def restore_rds_snapshot(attributes):
         DBSubnetGroupName=attributes['db_subnet_group']
     )
 
+    logging.info('Making sure database parameter group %s exists' % args.db_param_group)
+    # Verify that the specified database param group is real
+    db_param_group = client.describe_db_parameter_groups(
+        DBParameterGroupName=args.db_param_group
+    )
 
-    if db_subnet_group:
+    if (db_subnet_group and db_param_group):
         logging.info('Restoring snapshot %s to new instance %s' % (attributes['restore_snapshot_id'], attributes['name']))
 
         response = client.restore_db_instance_from_db_snapshot(
@@ -276,7 +288,8 @@ def restore_rds_snapshot(attributes):
             MultiAZ=attributes['multi_az'],
             AutoMinorVersionUpgrade=attributes['auto_minor_version_upgrade'],
             DBSubnetGroupName=attributes['db_subnet_group'],
-            Tags=attributes['tags']
+            Tags=attributes['tags'],
+            DBParameterGroupName=args.db_param_group
         )
 
         logging.info("Restore initiated, waiting for database to become available...")
@@ -451,7 +464,7 @@ def write_delete_patch(dns_name,value):
 
 
 def build_parser():
-    parser = argparse.ArgumentParser(description='Restore the most recent snapshot of a given RDS instance to a new instance')
+    parser = argparse.ArgumentParser(description='Restore the most recent snapshot of a given RDS instance or a to a new instance')
     parser.add_argument(
         '-t', '--target', required=True, type=str, dest='target_instance', help='Name of the RDS instance to restore the snapshot from - this is the DBInstanceIdentifier of the target instance')
     parser.add_argument(
@@ -461,7 +474,7 @@ def build_parser():
     parser.add_argument(
         '-p', '--prefix', required=False, type=str, dest='prefix', default='', help='Prefix for the new instance DBInstanceIdentifier')
     parser.add_argument(
-        '-u', '--subnet-name', required=False, type=str, dest='subnet_group_name', help='Name of the database subnet group to use for the new instance. Defaults to the subnet group of the target instance if not specified')
+        '-u', '--subnet-group-name', required=False, type=str, dest='subnet_group_name', help='Name of the database subnet group to use for the new instance. Defaults to the subnet group of the target instance if not specified')
     parser.add_argument(
         '-S', '--sec-group-names', required=False, nargs='+', type=str, dest='security_group_names', help='Names of the VPC security group to use for the new instance. Defaults to the security group of the target instance if not specified. Specify multiple separated by a space. Must also specify --vpc-tag-name.')
     parser.add_argument(
@@ -477,9 +490,13 @@ def build_parser():
     parser.add_argument(
         '-s', '--snapshot-type', required=False, type=str, dest='snapshot_type', default='automated', help='Snapshot type to search filter on. Defaults to "automated"')
     parser.add_argument(
-        '-f', '--data-folder', required=False, type=str, dest='data_folder', default='./', help='Path to the folder where RDS instance and DNS data will be stored')
+        '-f', '--data-folder', required=False, type=str, dest='data_folder', default='./', help='Path to the folder where RDS instance name and DNS data will be stored')
     parser.add_argument(
         '-e', '--extra-tags', required=False, type=str, dest='extra_tags', help='Additional Tags for the new RDS instance. Format like -e "tag1_key:tag1_value;tag2_key:tag2_value"')
+    parser.add_argument(
+        '-x', '--from-snapshot', required=False, action='store_true', dest='from_snapshot', default=False, help='Set this flag to restore directly from a snapshot')
+    parser.add_argument(
+        '-y', '--db-param-group', required=True, dest='db_param_group', help='Name of the parameter group applied to the new RDS instance')
     parser.add_argument(
         '-n', '--noop', required=False, dest='noop', action='store_true', default=False, help='Enable NOOP mode - will not perform any restore tasks')
 
