@@ -1,6 +1,6 @@
-FROM python:3.6-slim-stretch
-RUN pip install boto3
-RUN mkdir /ssr
-COPY snapshot_restore.py /ssr/snapshot_restore.py
-RUN chmod +x /ssr/snapshot_restore.py
+FROM python:3.7-slim-stretch
+WORKDIR /app
+COPY app/* ./
+RUN chmod -R +x *.py
+RUN pip install -r requirements.txt
 CMD [""]

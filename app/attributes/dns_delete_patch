@@ -1,0 +1,1 @@
+{"Comment": "Delete single record set", "Changes": [{"Action": "DELETE", "ResourceRecordSet": {"Name": "eph-666666-rds.dev.eu-west-1.stuart.", "Type": "CNAME", "TTL": 300, "ResourceRecords": [{"Value": "eph-666666-pseudonymised-instance-1598469260.clt2hqjzc0dv.eu-west-1.rds.amazonaws.com"}]}}]}

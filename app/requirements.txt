@@ -1,0 +1,2 @@
+boto3==1.7.12
+kubernetes==11.0.0
