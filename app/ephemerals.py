@@ -41,10 +41,9 @@ class EPHEMERALS():
         for zombie in rds_zombies:
             ephemeral_name = zombie['instance_name'][:10]
             attributes['cname_name'] = f"{ephemeral_name}-rds"
-            print(zombie['instance_address'])
-            #route53.update_dns(attributes, zombie['instance_address'],action='DELETE')
+            route53.update_dns(attributes, zombie['instance_address'],action='DELETE')
             zombie_names.append(zombie['instance_name'])
 
-        #rds.destroy_old_instances(zombie_names)
+        rds.destroy_old_instances(zombie_names)
 
 

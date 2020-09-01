@@ -135,11 +135,14 @@ class RDS():
             MaxRecords=20
         )['DBSnapshots']
 
+        #Filter to get only "Ready" snapshots
+        available_snapshots = list(filter(lambda d: d['Status'] in ['available'], snapshots))
+
         # From https://github.com/truffls/rds_snapshot_restore/blob/master/rds_snapshot_restore.py
         # sort descending and retrieve most current entry
         try:
             most_current_snapshot = sorted(
-                snapshots,
+                available_snapshots,
                 key=lambda x: x.get('SnapshotCreateTime'),
                 reverse=True)[0]
         except IndexError:
