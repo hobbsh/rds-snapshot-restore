@@ -41,7 +41,16 @@ class EPHEMERALS():
         for zombie in rds_zombies:
             ephemeral_name = zombie['instance_name'][:10]
             attributes['cname_name'] = f"{ephemeral_name}-rds"
-            route53.update_dns(attributes, zombie['instance_address'],action='DELETE')
+            #Get All records for DNS Zone
+            route53_records = route53.get_records_set(attributes['zone_id'])
+            route53_record_name = f'{attributes["cname_name"]}.{attributes["dns_suffix"]}.'
+            #Check if record exists
+            zombie_cname_record = list(filter(lambda d: d['Name'] in [route53_record_name], route53_records))
+            if zombie_cname_record:
+                logging.info(f'DNS record for {route53_record_name} found, deleting ...')
+                route53.update_dns(attributes, zombie['instance_address'],action='DELETE')
+            else:
+                logging.info(f'DNS record for {route53_record_name} not found, skipping ...')
             zombie_names.append(zombie['instance_name'])
 
         rds.destroy_old_instances(zombie_names)

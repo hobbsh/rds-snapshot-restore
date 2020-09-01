@@ -71,6 +71,14 @@ class ROUTE53():
             logging.critical("Error updating DNS for endpoint %s - %s" % (target, str(e)))
             raise
 
+    def get_records_set(self,zone_id):
+        try:
+            response = self.client.list_resource_record_sets(HostedZoneId=zone_id)
+        except Exception as e:
+            logging.critical("Error listing DNS records in zone %s - %s" % (zone_id, str(e)))
+            raise
+        return response['ResourceRecordSets']
+
     def write_delete_patch(self,dns_name,value):
         delete_patch = {
             'Comment': 'Delete single record set',
