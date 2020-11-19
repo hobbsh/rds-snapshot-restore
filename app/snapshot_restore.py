@@ -53,6 +53,10 @@ def build_parser():
         '-Z', '--ephemeral-zombie-clean', required=False, dest="ephemeral_zombie_clean", action='store_true', help='Remove RDS Instances and Route53 CNAME for resources when there is no K8s namespace associated')
     parser.add_argument(
         '-n', '--noop', default=os.environ.get('NOOP',False), required=False, dest='noop', action='store_true', help='Enable NOOP mode - will not perform any restore tasks')
+    parser.add_argument(
+        '-R', '--read-replica', default=os.environ.get('READ_REPLICA',False), required=False, dest='read_replica', action='store_true', help='Create DB read replica')
+    parser.add_argument(
+        '-X', '--replica-suffix', default=os.environ.get('REPLICA_SUFFIX','replica'), required=False, type=str, dest='replica_suffix', help='Suffix for the DB replica DBInstanceIdentifier')
 
     return parser
 
@@ -80,6 +84,10 @@ def main(args):
         new_instance = rds.modify_new_rds_instance(new_instance_attributes)
 
         if new_instance:
+
+            if args.read_replica:
+                rds.create_read_replica(new_instance_attributes)
+
             endpoint = new_instance['DBInstance']['Endpoint']['Address']
             route53.update_dns(new_instance_attributes, endpoint)
 

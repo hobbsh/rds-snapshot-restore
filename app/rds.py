@@ -212,10 +212,15 @@ class RDS():
         try:
             logging.info('Modifying db instance %s' % attributes['name'])
 
+            if self.args.read_replica:
+                backup_retention = 1
+            else:
+                backup_retention = 0
+
             response = self.client.modify_db_instance(
                 DBInstanceIdentifier=attributes['name'],
                 VpcSecurityGroupIds=attributes['security_group_ids'],
-                BackupRetentionPeriod=0
+                BackupRetentionPeriod=backup_retention
             )
 
             waiter = self.client.get_waiter('db_instance_available')
@@ -277,3 +282,31 @@ class RDS():
         except Exception as e:
             logging.critical("Error retrieving list of instances - %s" % (str(e)))
             raise
+
+    def create_read_replica(self,attributes):
+
+        read_replica_id = f'{attributes["name"]}-{self.args.replica_suffix}'
+        try:
+            logging.info("Initiating read replica creation ...")
+
+            replica = self.client.create_db_instance_read_replica(
+                DBInstanceIdentifier=read_replica_id,
+                SourceDBInstanceIdentifier=attributes["name"],
+                Tags=attributes['tags'],
+            )
+
+            logging.info("Read replica creation initiated, waiting for database to become available...")
+
+            waiter = self.client.get_waiter('db_instance_available')
+            waiter.wait(
+                DBInstanceIdentifier=read_replica_id,
+                WaiterConfig={
+                    'Delay': 15,
+                    'MaxAttempts': 60
+                }
+            )
+
+            return replica
+        except Exception as e:
+            logging.critical("Error while creating read replica - %s" % (str(e)))
+
