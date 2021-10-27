@@ -46,9 +46,11 @@ def build_parser():
     parser.add_argument(
         '-e', '--extra-tags', default=os.environ.get('EXTRA_TAGS',None), required=False, type=str, dest='extra_tags', help='Additional Tags for the new RDS instance. Format like -e "tag1_key:tag1_value;tag2_key:tag2_value"')
     parser.add_argument(
-        '-x', '--from-snapshot', default=os.environ.get('FROM_SNAPSHOT',True), required=False, action='store_true', dest='from_snapshot', help='Set this flag to restore directly from a snapshot')
+        '-x', '--from-snapshot', default=os.environ.get('FROM_SNAPSHOT',False), required=False, action='store_true', dest='from_snapshot', help='Set this flag to restore directly from a snapshot')
     parser.add_argument(
         '-y', '--db-param-group', default=os.environ.get('DB_PARAM_GP',None), required=False, dest='db_param_group', help='Name of the parameter group applied to the new RDS instance')
+    parser.add_argument(
+        '-o', '--db-option-group', default=os.environ.get('DB_OPT_GP',None), required=False, dest='db_opt_group', help='Name of the option group applied to the new RDS instance')
     parser.add_argument(
         '-Z', '--ephemeral-zombie-clean', required=False, dest="ephemeral_zombie_clean", action='store_true', help='Remove RDS Instances and Route53 CNAME for resources when there is no K8s namespace associated')
     parser.add_argument(
@@ -57,7 +59,15 @@ def build_parser():
         '-R', '--read-replica', default=os.environ.get('READ_REPLICA',False), required=False, dest='read_replica', action='store_true', help='Create DB read replica')
     parser.add_argument(
         '-X', '--replica-suffix', default=os.environ.get('REPLICA_SUFFIX','replica'), required=False, type=str, dest='replica_suffix', help='Suffix for the DB replica DBInstanceIdentifier')
-
+    parser.add_argument(
+        '-C', '--replica-cname-name', default=os.environ.get('REPLICA_DNS_CNAME',None), required=False, type=str, dest='replica_cname_name', help='Name of the CNAME to create for the new instance replica')
+    parser.add_argument(
+        '-I', '--replica-instance-class', default=os.environ.get('RDS_REPLICA_INSTANCE_TYPE','db.t2.medium'), required=False, type=str, dest='replica_instance_class', help='Instance class to use for the new instance replica. Defaults to db.t2.medium')
+    parser.add_argument(
+        '-N', '--new-instance-name', default=os.environ.get('NEW_INSTANCE_NAME',None), required=False, type=str, dest='new_instance_name', help='New name of the RDS instance')
+    parser.add_argument(
+        '-P', '--source-rds-snapshot', default=os.environ.get('SRC_RDS_SNAPSHOT',None), required=False, type=str, dest='src_rds_snapshot', help='RDS Instance to retrieve snapshot from')
+    
     return parser
 
 def main(args):
@@ -85,14 +95,23 @@ def main(args):
 
         if new_instance:
 
-            if args.read_replica:
-                rds.create_read_replica(new_instance_attributes)
-
-            endpoint = new_instance['DBInstance']['Endpoint']['Address']
-            route53.update_dns(new_instance_attributes, endpoint)
-
             if new_instance_attributes['existing_instances']:
                 rds.destroy_old_instances(new_instance_attributes['existing_instances'])
+
+            if args.new_instance_name != None:
+                master = rds.rename_rds_instance(new_instance_attributes['name'],args.new_instance_name)
+                new_instance_attributes['name'] = args.new_instance_name
+
+            master_attributes = rds.get_target_instance_attributes(new_instance_attributes['name'])
+        
+            endpoint = master_attributes['Endpoint']['Address']
+            route53.update_dns(args.cname_name,args.dns_suffix,args.zone_id, endpoint)
+
+            if args.read_replica:
+                replica = rds.create_read_replica(new_instance_attributes)
+
+                replica_attributes = rds.get_target_instance_attributes(replica['DBInstance']['DBInstanceIdentifier'])
+                route53.update_dns(args.replica_cname_name, args.dns_suffix,args.zone_id,replica_attributes['Endpoint']['Address'])
 
     else:
         logging.info("NOOP: Would restore snapshot %s" % (new_instance_attributes['restore_snapshot_id']))
@@ -101,6 +120,7 @@ if __name__ == '__main__':
 
     parser = build_parser()
     args = parser.parse_args()
+    print(args)
 
     loglevel = logging.INFO
     logging.basicConfig(level=loglevel)
