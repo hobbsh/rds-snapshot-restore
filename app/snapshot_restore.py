@@ -50,8 +50,6 @@ def build_parser():
     parser.add_argument(
         '-y', '--db-param-group', default=os.environ.get('DB_PARAM_GP',None), required=False, dest='db_param_group', help='Name of the parameter group applied to the new RDS instance')
     parser.add_argument(
-        '-o', '--db-option-group', default=os.environ.get('DB_OPT_GP',None), required=False, dest='db_opt_group', help='Name of the option group applied to the new RDS instance')
-    parser.add_argument(
         '-Z', '--ephemeral-zombie-clean', required=False, dest="ephemeral_zombie_clean", action='store_true', help='Remove RDS Instances and Route53 CNAME for resources when there is no K8s namespace associated')
     parser.add_argument(
         '-n', '--noop', default=os.environ.get('NOOP',False), required=False, dest='noop', action='store_true', help='Enable NOOP mode - will not perform any restore tasks')
@@ -120,7 +118,6 @@ if __name__ == '__main__':
 
     parser = build_parser()
     args = parser.parse_args()
-    print(args)
 
     loglevel = logging.INFO
     logging.basicConfig(level=loglevel)

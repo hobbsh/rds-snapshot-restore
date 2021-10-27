@@ -47,11 +47,6 @@ class RDS():
         else:
             db_param_group = target_attributes['DBParameterGroups'][0]['DBParameterGroupName']
 
-        if self.args.db_opt_group:
-            db_opt_group = self.args.db_opt_group
-        else:
-            db_opt_group = target_attributes['OptionGroupMemberships'][0]['OptionGroupName']
-
         # Set the Route53 Hosted Zone ID
         if self.args.zone_match_string and not self.args.zone_id:
             zone_id = self.route53.get_route53_zone_id(self.args.zone_match_string)
@@ -68,9 +63,6 @@ class RDS():
             new_instance_base = target_name
 
         new_instance_name = "%s-%s" % (new_instance_base, now)
-
-        # if self.args.new_instance_name:
-        #     new_instance_name = self.args.new_instance_name
 
         tag_key = "%s-automated-restore" % new_instance_base
         tags = [
@@ -95,7 +87,6 @@ class RDS():
             'security_group_ids': security_group_ids,
             'db_subnet_group': db_subnet_group,
             'db_param_group' : db_param_group,
-            'db_opt_group': db_opt_group,
             'zone_id': zone_id,
             'instance_class': self.args.instance_class,
             'restore_snapshot_id': restore_snapshot_id,
@@ -209,7 +200,6 @@ class RDS():
                 DBSubnetGroupName=attributes['db_subnet_group'],
                 Tags=attributes['tags'],
                 DBParameterGroupName=attributes['db_param_group'],
-                OptionGroupName=attributes['db_opt_group']
             )
 
             logging.info("Restore initiated, waiting for database to become available...")
