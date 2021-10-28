@@ -35,67 +35,58 @@ This script assumes:
 #### Arguments
 
 ```
-usage: snapshot_restore.py [-h] -t TARGET_INSTANCE [-r AWS_REGION]
-                           [-i INSTANCE_CLASS] [-p PREFIX]
-                           [-u SUBNET_GROUP_NAME]
-                           [-S SECURITY_GROUP_NAMES [SECURITY_GROUP_NAMES ...]]
-                           [-V VPC_TAG_NAME] -D DNS_SUFFIX -c CNAME_NAME
-                           [-m ZONE_MATCH_STRING] [-z ZONE_ID]
-                           [-s SNAPSHOT_TYPE] [-f DATA_FOLDER] [-e EXTRA_TAGS]
-                           [-x] -y DB_PARAM_GROUP [-n]
+usage: snapshot_restore.py [-h] [-t TARGET_INSTANCE] [-r AWS_REGION] [-i INSTANCE_CLASS] [-p PREFIX] [-u SUBNET_GROUP_NAME] [-S SECURITY_GROUP_NAMES [SECURITY_GROUP_NAMES ...]]
+                           [-V VPC_TAG_NAME] [-D DNS_SUFFIX] [-c CNAME_NAME] [-m ZONE_MATCH_STRING] [-z ZONE_ID] [-s SNAPSHOT_TYPE] [-f DATA_FOLDER] [-e EXTRA_TAGS] [-x]
+                           [-y DB_PARAM_GROUP] [-Z] [-n] [-R] [-X REPLICA_SUFFIX] [-C REPLICA_CNAME_NAME] [-I REPLICA_INSTANCE_CLASS] [-N NEW_INSTANCE_NAME] [-P SRC_RDS_SNAPSHOT]
 
-Restore the most recent snapshot of a given RDS instance to a new instance
+Restore the most recent snapshot of a given RDS instance or a to a new instance
 
 optional arguments:
   -h, --help            show this help message and exit
   -t TARGET_INSTANCE, --target TARGET_INSTANCE
-                        Name of the RDS instance to restore the snapshot from
-                        - this is the DBInstanceIdentifier of the target
-                        instance
+                        Name of the RDS instance to restore the snapshot from - this is the DBInstanceIdentifier of the target instance
   -r AWS_REGION, --region AWS_REGION
-                        AWS Region to use. Currently can only target and
-                        restore to the same region. Defaults to "us-west-2"
+                        AWS Region to use. Currently can only target and restore to the same region. Defaults to "us-west-2"
   -i INSTANCE_CLASS, --instance-class INSTANCE_CLASS
-                        Instance class to use for the new instance. Defaults
-                        to db.t2.medium
+                        Instance class to use for the new instance. Defaults to db.t2.medium
   -p PREFIX, --prefix PREFIX
                         Prefix for the new instance DBInstanceIdentifier
   -u SUBNET_GROUP_NAME, --subnet-group-name SUBNET_GROUP_NAME
-                        Name of the database subnet group to use for the new
-                        instance. Defaults to the subnet group of the target
-                        instance if not specified
+                        Name of the database subnet group to use for the new instance. Defaults to the subnet group of the target instance if not specified
   -S SECURITY_GROUP_NAMES [SECURITY_GROUP_NAMES ...], --sec-group-names SECURITY_GROUP_NAMES [SECURITY_GROUP_NAMES ...]
-                        Names of the VPC security group to use for the new
-                        instance. Defaults to the security group of the target
-                        instance if not specified. Specify multiple separated
-                        by a space. Must also specify --vpc-tag-name.
+                        Names of the VPC security group to use for the new instance. Defaults to the security group of the target instance if not specified. Specify multiple
+                        separated by a space. Must also specify --vpc-tag-name.
   -V VPC_TAG_NAME, --vpc-tag-name VPC_TAG_NAME
-                        VPC "Name" tag value. Required when using --sec-group-
-                        names
+                        VPC "Name" tag value. Required when using --sec-group-names
   -D DNS_SUFFIX, --dns-suffix DNS_SUFFIX
                         DNS Suffix for your private Route53 zone
   -c CNAME_NAME, --cname-name CNAME_NAME
                         Name of the CNAME to create for the new instance
   -m ZONE_MATCH_STRING, --match-zone ZONE_MATCH_STRING
-                        String to match a Route53 Hosted Zone name on to
-                        determine the zone ID. Useful if you rebuild private
-                        DNS zones often. Overrides --zone-id if specified.
+                        String to match a Route53 Hosted Zone name on to determine the zone ID. Useful if you rebuild private DNS zones often. Overrides --zone-id if specified.
   -z ZONE_ID, --zone-id ZONE_ID
-                        Route53 Zone ID to use for the new instance CNAME.
-                        Defaults to the zone id of the target instance. Is
-                        overridden by --match-zone.
+                        Route53 Zone ID to use for the new instance CNAME. Defaults to the zone id of the target instance. Is overridden by --match-zone.
   -s SNAPSHOT_TYPE, --snapshot-type SNAPSHOT_TYPE
-                        Snapshot type to search filter on. Defaults to
-                        "automated"
+                        Snapshot type to search filter on. Defaults to "automated"
   -f DATA_FOLDER, --data-folder DATA_FOLDER
-                        Path to the folder where RDS instance name and DNS data
-                        will be stored
+                        Path to the folder where RDS instance name and DNS data will be stored
   -e EXTRA_TAGS, --extra-tags EXTRA_TAGS
-                        Additional Tags for the new RDS instance. Format like
-                        -e "tag1_key:tag1_value;tag2_key:tag2_value"
+                        Additional Tags for the new RDS instance. Format like -e "tag1_key:tag1_value;tag2_key:tag2_value"
   -x, --from-snapshot   Set this flag to restore directly from a snapshot
   -y DB_PARAM_GROUP, --db-param-group DB_PARAM_GROUP
-                        Name of the parameter group applied to the new RDS
-                        instance
+                        Name of the parameter group applied to the new RDS instance
+  -Z, --ephemeral-zombie-clean
+                        Remove RDS Instances and Route53 CNAME for resources when there is no K8s namespace associated
   -n, --noop            Enable NOOP mode - will not perform any restore tasks
+  -R, --read-replica    Create DB read replica
+  -X REPLICA_SUFFIX, --replica-suffix REPLICA_SUFFIX
+                        Suffix for the DB replica DBInstanceIdentifier
+  -C REPLICA_CNAME_NAME, --replica-cname-name REPLICA_CNAME_NAME
+                        Name of the CNAME to create for the new instance replica
+  -I REPLICA_INSTANCE_CLASS, --replica-instance-class REPLICA_INSTANCE_CLASS
+                        Instance class to use for the new instance replica. Defaults to db.t2.medium
+  -N NEW_INSTANCE_NAME, --new-instance-name NEW_INSTANCE_NAME
+                        New name of the RDS instance
+  -P SRC_RDS_SNAPSHOT, --source-rds-snapshot SRC_RDS_SNAPSHOT
+                        RDS Instance to retrieve snapshot from
 ```
