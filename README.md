@@ -39,7 +39,7 @@ usage: snapshot_restore.py [-h] [-t TARGET_INSTANCE] [-r AWS_REGION] [-i INSTANC
                            [-V VPC_TAG_NAME] [-D DNS_SUFFIX] [-c CNAME_NAME] [-m ZONE_MATCH_STRING] [-z ZONE_ID] [-s SNAPSHOT_TYPE] [-f DATA_FOLDER] [-e EXTRA_TAGS] [-x]
                            [-y DB_PARAM_GROUP] [-Z] [-n] [-R] [-X REPLICA_SUFFIX] [-C REPLICA_CNAME_NAME] [-I REPLICA_INSTANCE_CLASS] [-N NEW_INSTANCE_NAME] [-P SRC_RDS_SNAPSHOT]
 
-Restore the most recent snapshot of a given RDS instance or a to a new instance
+Restore the most recent snapshot of a given RDS instance to a new instance
 
 optional arguments:
   -h, --help            show this help message and exit
