@@ -34,22 +34,22 @@ class ROUTE53():
             raise
 
 
-    def update_dns(self,attributes, target,action='UPSERT'):
+    def update_dns(self,cname,dns_suffix,zone_id, target,action='UPSERT'):
         """
         Create CNAME for new instance - this makes the new instance "live"
         Source is the record name, target is the target address, i.e. a DB endpoint address
         """
 
-        dns_name = "%s.%s" % (attributes['cname_name'], attributes['dns_suffix'])
+        dns_name = "%s.%s" % (cname, dns_suffix)
 
-        logging.info("%s DNS in zone %s for record %s with value %s" % (action, attributes['zone_id'], dns_name, target))
+        logging.info("%s DNS in zone %s for record %s with value %s" % (action, zone_id, dns_name, target))
 
         self.helpers.write_attribute_to_file(f'{self.args.data_folder}/dns_record_name',dns_name)
         self.helpers.write_attribute_to_file(f'{self.args.data_folder}/dns_record_value',target)
 
         try:
             response = self.client.change_resource_record_sets(
-                HostedZoneId=attributes['zone_id'],
+                HostedZoneId=zone_id,
                 ChangeBatch={
                     'Changes': [{
                         'Action': action,

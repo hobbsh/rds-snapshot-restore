@@ -42,6 +42,11 @@ class RDS():
         else:
             db_subnet_group = target_attributes['DBSubnetGroup']['DBSubnetGroupName']
 
+        if self.args.db_param_group:
+            db_param_group = self.args.db_param_group
+        else:
+            db_param_group = target_attributes['DBParameterGroups'][0]['DBParameterGroupName']
+
         # Set the Route53 Hosted Zone ID
         if self.args.zone_match_string and not self.args.zone_id:
             zone_id = self.route53.get_route53_zone_id(self.args.zone_match_string)
@@ -58,6 +63,7 @@ class RDS():
             new_instance_base = target_name
 
         new_instance_name = "%s-%s" % (new_instance_base, now)
+
         tag_key = "%s-automated-restore" % new_instance_base
         tags = [
             {
@@ -66,14 +72,21 @@ class RDS():
             }
         ]
 
+        if self.args.src_rds_snapshot == None:
+            source_rds = target_name
+        else:
+            source_rds = self.args.src_rds_snapshot
+
+
         restore_snapshot_id = self.get_recent_rds_snapshot(
-            self.args.snapshot_type, target_name)
+            self.args.snapshot_type, source_rds)
 
         new_instance_attributes = {
             'name': new_instance_name,
             'existing_instances': self.find_snapshot_restored_instances(new_instance_base),
             'security_group_ids': security_group_ids,
             'db_subnet_group': db_subnet_group,
+            'db_param_group' : db_param_group,
             'zone_id': zone_id,
             'instance_class': self.args.instance_class,
             'restore_snapshot_id': restore_snapshot_id,
@@ -168,10 +181,10 @@ class RDS():
             DBSubnetGroupName=attributes['db_subnet_group']
         )
 
-        logging.info('Making sure database parameter group %s exists' % self.args.db_param_group)
+        logging.info('Making sure database parameter group %s exists' % attributes['db_param_group'])
         # Verify that the specified database param group is real
         db_param_group = self.client.describe_db_parameter_groups(
-            DBParameterGroupName=self.args.db_param_group
+            DBParameterGroupName=attributes['db_param_group']
         )
 
         if (db_subnet_group and db_param_group):
@@ -186,7 +199,7 @@ class RDS():
                 AutoMinorVersionUpgrade=attributes['auto_minor_version_upgrade'],
                 DBSubnetGroupName=attributes['db_subnet_group'],
                 Tags=attributes['tags'],
-                DBParameterGroupName=self.args.db_param_group
+                DBParameterGroupName=attributes['db_param_group'],
             )
 
             logging.info("Restore initiated, waiting for database to become available...")
@@ -212,10 +225,16 @@ class RDS():
         try:
             logging.info('Modifying db instance %s' % attributes['name'])
 
+            if self.args.read_replica:
+                backup_retention = 1
+            else:
+                backup_retention = 0
+
             response = self.client.modify_db_instance(
+                ApplyImmediately=True,
                 DBInstanceIdentifier=attributes['name'],
                 VpcSecurityGroupIds=attributes['security_group_ids'],
-                BackupRetentionPeriod=0
+                BackupRetentionPeriod=backup_retention
             )
 
             waiter = self.client.get_waiter('db_instance_available')
@@ -226,6 +245,17 @@ class RDS():
                     'MaxAttempts': 60
                 }
             )
+
+            if self.args.read_replica:
+                logging.info('Waiting for db snapshot...')
+                waiter = self.client.get_waiter('db_snapshot_completed')
+                waiter.wait(
+                    DBInstanceIdentifier=attributes['name'],
+                    WaiterConfig={
+                        'Delay': 15,
+                        'MaxAttempts': 60
+                    }
+                )
 
             return response
 
@@ -277,3 +307,64 @@ class RDS():
         except Exception as e:
             logging.critical("Error retrieving list of instances - %s" % (str(e)))
             raise
+
+    def create_read_replica(self,attributes):
+
+        waiter = self.client.get_waiter('db_instance_available')
+        waiter.wait(
+            DBInstanceIdentifier=attributes['name'],
+            WaiterConfig={
+                'Delay': 15,
+                'MaxAttempts': 60
+            }
+        )
+        
+
+        read_replica_id = f'{attributes["name"]}-{self.args.replica_suffix}'
+        try:
+            logging.info("Initiating read replica creation ...")
+
+            replica = self.client.create_db_instance_read_replica(
+                DBInstanceIdentifier=read_replica_id,
+                DBInstanceClass=self.args.replica_instance_class,
+                SourceDBInstanceIdentifier=attributes["name"],
+                Tags=attributes['tags'],
+            )
+
+            logging.info("Read replica creation initiated, waiting for database to become available...")
+
+            waiter = self.client.get_waiter('db_instance_available')
+            waiter.wait(
+                DBInstanceIdentifier=read_replica_id,
+                WaiterConfig={
+                    'Delay': 15,
+                    'MaxAttempts': 60
+                }
+            )
+
+            return replica
+
+        except Exception as e:
+            logging.critical("Error while creating read replica - %s" % (str(e)))
+
+    def rename_rds_instance(self,old_identifier,new_identifier):
+        """
+        Rename instance 
+        """
+        try:
+            logging.info(f'Renaming db instance {old_identifier} to {new_identifier}')
+
+            response = self.client.modify_db_instance(
+                ApplyImmediately=True,
+                DBInstanceIdentifier=old_identifier,
+                NewDBInstanceIdentifier=new_identifier
+            )
+
+            time.sleep(180)
+
+            return response
+
+        except:
+            raise Exception(
+                f'ERROR: Could there was a problem renaming the instance {old_identifier}')
+
