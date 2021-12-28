@@ -48,7 +48,7 @@ class EPHEMERALS():
             zombie_cname_record = list(filter(lambda d: d['Name'] in [route53_record_name], route53_records))
             if zombie_cname_record:
                 logging.info(f'DNS record for {route53_record_name} found, deleting ...')
-                route53.update_dns(attributes, zombie['instance_address'],action='DELETE')
+                route53.update_dns(attributes['cname_name'], attributes['dns_suffix'], attributes['zone_id'], zombie['instance_address'], action='DELETE')
             else:
                 logging.info(f'DNS record for {route53_record_name} not found, skipping ...')
             zombie_names.append(zombie['instance_name'])
