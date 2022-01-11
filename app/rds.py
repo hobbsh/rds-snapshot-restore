@@ -144,8 +144,7 @@ class RDS():
         # Get all snapshots for the account, which we will filter in the next step
         snapshots = self.client.describe_db_snapshots(
             DBInstanceIdentifier=target_rds_instance,
-            SnapshotType=snapshot_type,
-            MaxRecords=20
+            SnapshotType=snapshot_type
         )['DBSnapshots']
 
         #Filter to get only "Ready" snapshots
