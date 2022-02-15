@@ -282,7 +282,7 @@ class RDS():
                 waiter.wait(
                     DBInstanceIdentifier=instance,
                     WaiterConfig={
-                        'Delay': 15,
+                        'Delay': 30,
                         'MaxAttempts': 60
                     }
                 )
