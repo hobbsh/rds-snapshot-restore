@@ -137,6 +137,13 @@ class RDS():
             return None
 
     def get_recent_rds_snapshot(self,snapshot_type, target_rds_instance):
+        def filter_snapshots(snapshot):
+            if snapshot['Status'] != "available":
+                return False
+            for tag in snapshot.get("TagList", []):
+                if tag.get("Key") == "Ready" and tag.get("Value") == "true":
+                    return True
+            return False
 
         logging.info("Finding most recent %s snapshot from master instance %s" %
             (snapshot_type, target_rds_instance))
@@ -148,8 +155,8 @@ class RDS():
             MaxRecords=20
         )['DBSnapshots']
 
-        #Filter to get only "Ready" snapshots
-        available_snapshots = list(filter(lambda d: d['Status'] in ['available'], snapshots))
+        # Filter to get only available snapshots
+        available_snapshots = list(filter(filter_snapshots, snapshots))
 
         # From https://github.com/truffls/rds_snapshot_restore/blob/master/rds_snapshot_restore.py
         # sort descending and retrieve most current entry
