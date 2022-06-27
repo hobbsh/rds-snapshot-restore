@@ -288,8 +288,8 @@ class RDS():
                 waiter.wait(
                     DBInstanceIdentifier=instance,
                     WaiterConfig={
-                        'Delay': 30,
-                        'MaxAttempts': 60
+                        'Delay': 60,
+                        'MaxAttempts': 120
                     }
                 )
             except Exception as e:
