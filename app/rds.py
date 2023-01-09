@@ -343,8 +343,8 @@ class RDS():
             waiter.wait(
                 DBInstanceIdentifier=read_replica_id,
                 WaiterConfig={
-                    'Delay': 15,
-                    'MaxAttempts': 60
+                    'Delay': 30,
+                    'MaxAttempts': 120
                 }
             )
 
