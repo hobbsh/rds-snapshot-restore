@@ -366,7 +366,7 @@ class RDS():
                 NewDBInstanceIdentifier=new_identifier
             )
 
-            time.sleep(360)
+            time.sleep(600)
 
             return response
 
