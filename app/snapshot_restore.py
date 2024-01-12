@@ -9,6 +9,7 @@ import time
 import sys
 import re
 import os
+import json
 from rds import RDS
 from route53 import ROUTE53
 from helpers import HELPERS
@@ -65,6 +66,8 @@ def build_parser():
         '-N', '--new-instance-name', default=os.environ.get('NEW_INSTANCE_NAME',None), required=False, type=str, dest='new_instance_name', help='New name of the RDS instance')
     parser.add_argument(
         '-P', '--source-rds-snapshot', default=os.environ.get('SRC_RDS_SNAPSHOT',None), required=False, type=str, dest='src_rds_snapshot', help='RDS Instance to retrieve snapshot from')
+    parser.add_argument(
+        '-F', '--filter-tags', default=os.environ.get('FILTER_TAGS','[{"Key": "Ready","Value": "true"}'), required=False, dest='filter_tags', type=json.loads, help='Tags used to filter DB snapshots. JSON format')
     
     return parser
 

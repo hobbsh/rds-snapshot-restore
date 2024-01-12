@@ -140,10 +140,15 @@ class RDS():
         def filter_snapshots(snapshot):
             if snapshot['Status'] != "available":
                 return False
-            for tag in snapshot.get("TagList", []):
-                if tag.get("Key") == "Ready" and tag.get("Value") == "true":
-                    return True
-            return False
+
+            #Check filtered tags are present in the snapshot
+            snapshot_tags = snapshot.get("TagList", [])
+            filter_tags = self.args.filter_tags
+            for tag in filter_tags:
+                if not tag in snapshot_tags:
+                    return False
+
+            return True
 
         logging.info("Finding most recent %s snapshot from master instance %s" %
             (snapshot_type, target_rds_instance))
